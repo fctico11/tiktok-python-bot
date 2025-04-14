@@ -66,7 +66,6 @@ def wrap_lines(text_lines, font, max_width):
     return wrapped
 
 def preprocess_code(text):
-    """Ensure indented code retains tab structure."""
     lines = text.split("\n")
     return [line.replace("\t", "    ") for line in lines]
 
@@ -91,12 +90,10 @@ def generate_question_slide(data):
     bg = Image.new("RGB", (1080, 1920), "white")
     draw = ImageDraw.Draw(bg)
 
-    # Header
     draw.text((60, 130), "Daily Python Questions", font=title_font, fill="black")
     draw.text((60, 300), "Practice makes Python. Here's your daily question:", font=section_font, fill="#1f2937")
     paste_icon(draw, bg, python_logo_path, 920, 110)
 
-    # Card
     card = Image.open(bg_path).resize((1000, card_height)).convert("RGBA")
     card = add_rounded_corners(card, 60)
     card_x, card_y = 40, 520
@@ -105,7 +102,6 @@ def generate_question_slide(data):
     cx, cy = card_x + 50, card_y + 50
 
     paste_icon(draw, bg, difficulty_icon_paths[data["difficulty"].lower()], cx, cy)
-
     cd.text((card_x + 500 - draw.textlength(data["day"], title_font) // 2, cy + 8), data["day"], font=title_font, fill="white")
     cy += 100
     cd.line((cx, cy, card_x + 950, cy), fill="white", width=2)
@@ -120,7 +116,6 @@ def generate_question_slide(data):
         cd.text((cx, cy), line, font=code_font, fill="white")
         cy += 60
 
-    # Swipe Arrow
     swipe_text = "Swipe for answer and explanation"
     swipe_font = footer_font
     swipe_width = draw.textlength(swipe_text, font=swipe_font)
@@ -154,14 +149,13 @@ def generate_answer_slide(data, card_height):
 
     card = Image.open(bg_path).resize((1000, card_height)).convert("RGBA")
     card = add_rounded_corners(card, 60)
-    card_x, card_y = 40, 520
+    card_x, card_y = 40, 440  # shifted higher
     bg.paste(card, (card_x, card_y), card)
     cd = ImageDraw.Draw(bg)
     cx, cy = card_x + 50, card_y + 50
 
     paste_icon(draw, bg, difficulty_icon_paths[data["difficulty"].lower()], cx, cy)
     cd.text((card_x + 500 - draw.textlength(data["day"], title_font) // 2, cy + 8), data["day"], font=title_font, fill="white")
-
     cy += 100
     cd.line((cx, cy, card_x + 950, cy), fill="white", width=2)
     cy += 40
@@ -180,9 +174,11 @@ def generate_answer_slide(data, card_height):
         cd.text((cx, cy), line, font=code_font, fill="white")
         cy += 60
 
-    # Footer lines
-    footer_y = card_y + card_height + 100
-    footer_lines = [("Want more Python gems?", snake_path), ("Follow for daily insights and tips", bulb_path)]
+    footer_y = card_y + card_height + 80
+    footer_lines = [
+        ("Want more Python gems?", snake_path),
+        ("Follow for daily insights and tips", bulb_path)
+    ]
 
     for text, icon_path in footer_lines:
         icon = Image.open(icon_path).resize((70, 70)).convert("RGBA") if os.path.exists(icon_path) else None
