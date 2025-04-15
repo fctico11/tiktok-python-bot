@@ -8,11 +8,32 @@ generate_question_module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(generate_question_module)
 generate_question = generate_question_module.generate_question
 
-# Shared Vars
+# Helper to determine day and post
+def determine_day_post(slide_dir):
+    existing = [f for f in os.listdir(slide_dir) if f.endswith(".png")]
+    day_post_map = {}
+    for f in existing:
+        parts = f.replace(".png", "").split("_")
+        if len(parts) == 4 and parts[0] == "day":
+            day = int(parts[1])
+            post = int(parts[3])
+            if day not in day_post_map:
+                day_post_map[day] = []
+            day_post_map[day].append(post)
+    if not day_post_map:
+        return 1, 1
+    max_day = max(day_post_map.keys())
+    if len(day_post_map[max_day]) >= 2:
+        return max_day + 1, 1
+    else:
+        return max_day, 2
+
+day_number, post_number = determine_day_post("output/slides")
+
 question_data = generate_question()
-day_number = len([f for f in os.listdir("output/slides") if f.endswith(".png")]) + 1
 question_data["day"] = f"Day {day_number}"
 
+# Paths
 bg_path = "assets/backgrounds/bg.png"
 python_logo_path = "assets/pythonlogo.png"
 arrow_path = "assets/rightarrow.png"
@@ -24,7 +45,7 @@ difficulty_icon_paths = {
     "hard": "assets/red.png"
 }
 
-# Fonts (Fallbacks included)
+# Fonts
 def load_font(path_list, size):
     for path in path_list:
         try:
@@ -50,7 +71,6 @@ def add_rounded_corners(im, radius):
 def wrap_lines(text_lines, font, max_width):
     wrapped = []
     for line in text_lines:
-        line = line.replace("\t", "    ")  # Replace tab with spaces
         words = line.split()
         current = ""
         for word in words:
@@ -67,7 +87,32 @@ def wrap_lines(text_lines, font, max_width):
 
 def preprocess_code(text):
     lines = text.split("\n")
-    return [line.replace("\t", "    ") for line in lines]
+    processed = []
+    indent_level = 0
+
+    for i, line in enumerate(lines):
+        stripped = line.strip()
+
+        if stripped == "":
+            processed.append("")
+            continue
+
+        # Add indentation if we're inside a block
+        if indent_level > 0:
+            processed.append("    " * indent_level + stripped)
+        else:
+            processed.append(stripped)
+
+        # If the line ends with a colon, increase indentation for next line
+        if stripped.endswith(":"):
+            indent_level += 1
+        # If we're at a return or something that closes a block, reduce indentation
+        elif indent_level > 0 and not stripped.startswith(("return", "pass", "raise", "break", "continue")):
+            next_line = lines[i + 1].strip() if i + 1 < len(lines) else ""
+            if next_line and not next_line.startswith(("return", "pass", "raise", "break", "continue", "print", "if", "else", "elif")):
+                indent_level = 0
+
+    return processed
 
 def get_card_height(*sections, base=950, line_height=60):
     total_lines = sum(len(s) for s in sections)
@@ -81,7 +126,7 @@ def paste_icon(draw, bg, icon_path, x, y, size=60):
 # Generate Question Slide
 def generate_question_slide(data):
     os.makedirs("output/slides", exist_ok=True)
-    output_path = f"output/slides/day_{day_number}.png"
+    output_path = f"output/slides/day_{day_number}_post_{post_number}.png"
 
     q_lines = wrap_lines(preprocess_code(data["question"]), code_font, 900)
     o_lines = [l for opt in data["options"] for l in wrap_lines([opt], code_font, 900)]
@@ -131,7 +176,7 @@ def generate_question_slide(data):
 # Generate Answer Slide
 def generate_answer_slide(data, card_height):
     os.makedirs("output/answers", exist_ok=True)
-    output_path = f"output/answers/day_{day_number}_answer.png"
+    output_path = f"output/answers/day_{day_number}_post_{post_number}_answer.png"
 
     q_lines = wrap_lines(preprocess_code(data["question"]), code_font, 900)
     full_answer = next((opt for opt in data["options"] if opt.startswith(data["answer"])), data["answer"])
@@ -149,7 +194,7 @@ def generate_answer_slide(data, card_height):
 
     card = Image.open(bg_path).resize((1000, card_height)).convert("RGBA")
     card = add_rounded_corners(card, 60)
-    card_x, card_y = 40, 440  # shifted higher
+    card_x, card_y = 40, 440
     bg.paste(card, (card_x, card_y), card)
     cd = ImageDraw.Draw(bg)
     cx, cy = card_x + 50, card_y + 50
@@ -195,6 +240,6 @@ def generate_answer_slide(data, card_height):
     bg.save(output_path)
     print(f"✅ Explanation slide saved to: {output_path}")
 
-# Main Call
+# Main
 card_height = generate_question_slide(question_data)
 generate_answer_slide(question_data, card_height)
